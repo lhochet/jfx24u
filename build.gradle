@@ -601,6 +601,12 @@ ext.DO_JCOV = Boolean.parseBoolean(JCOV)
 defineProperty("USE_CYGWIN", "true")
 ext.IS_USE_CYGWIN = Boolean.parseBoolean(USE_CYGWIN)
 
+// Specifies whether to run "chmod -R artifacts/sdk" as the last step of
+// copying the sdk to the artifacts dir. This is only done on Windows;
+// the flag is ignored on other platforms.
+defineProperty("CHMOD_ARTIFACTS", "true")
+ext.IS_CHMOD_ARTIFACTS = Boolean.parseBoolean(CHMOD_ARTIFACTS)
+
 // Define the number of threads to use when compiling (specifically for native compilation, including webkit)
 defineProperty("NUM_COMPILE_THREADS", "${Runtime.runtime.availableProcessors()}")
 
@@ -615,6 +621,9 @@ defineProperty("HUDSON_BUILD_NUMBER","0000")
 defineProperty("PROMOTED_BUILD_NUMBER", "0")
 defineProperty("MILESTONE_FCS", "false")
 ext.IS_MILESTONE_FCS = Boolean.parseBoolean(MILESTONE_FCS)
+
+// The following property used to define WebView Browser Version
+defineProperty("WEBVIEW_VERSION", "18.4")
 
 // The following properties define the product name for Oracle JDK and OpenJDK
 // for VersionInfo and the DLL manifest.
@@ -4010,6 +4019,7 @@ project(":web") {
                     } else {
                         targetCpuBitDepthSwitch = "--32-bit"
                     }
+                    cmakeArgs += " -DWEBVIEW_BROWSER_VERSION=${WEBVIEW_VERSION}"
                     cmakeArgs += " -DJAVAFX_RELEASE_VERSION=${jfxReleaseMajorVersion}"
                     commandLine("perl", "$projectDir/src/main/native/Tools/Scripts/build-webkit",
                         "--java", "--icu-unicode", targetCpuBitDepthSwitch,
@@ -4964,9 +4974,13 @@ compileTargets { t ->
         def chmodArtifactsSdkTask = task("chmodArtifactsSdk$t.capital", dependsOn: copyArtifactsSdkTask) {
             if (IS_WINDOWS && IS_USE_CYGWIN) {
                 doLast {
-                    exec {
-                        workingDir(sdkArtifactsDir)
-                        commandLine("chmod", "-R", "755", ".")
+                    if (IS_CHMOD_ARTIFACTS) {
+                        exec {
+                            workingDir(sdkArtifactsDir)
+                            commandLine("chmod", "-R", "755", ".")
+                        }
+                    } else {
+                        println "Skipping 'chmod -R', CHMOD_ARTIFACTS=$CHMOD_ARTIFACTS"
                     }
                 }
             }
